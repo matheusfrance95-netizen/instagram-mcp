@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agenda Instagram</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <strong>Agenda Instagram</strong>
+      <span id="conta" class="sutil">conectando…</span>
+    </div>
+    <div class="indicadores">
+      <span id="cota" class="pilula" title="Publicações nas últimas 24h">—</span>
+      <span id="pendentes" class="pilula">—</span>
+      <button id="btn-notif" class="botao" type="button">🔔 Notificações</button>
+      <button id="btn-postar" class="botao primario" type="button" title="Abre o VS Code com o Claude e o MCP do Instagram">✍️ Nova postagem</button>
+    </div>
+  </header>
+
+  <nav class="paginas" role="tablist">
+    <button class="pagina" data-pagina="agenda" type="button">📅 Agenda</button>
+    <button class="pagina" data-pagina="metricas" type="button">📊 Métricas</button>
+  </nav>
+
+  <div id="pg-metricas" hidden>
+    <nav class="barra">
+      <div class="grupo"><h1>Desempenho</h1><span id="m-atualizado" class="sutil"></span></div>
+      <div class="grupo">
+        <div class="abas" role="tablist">
+          <button class="aba periodo" data-dias="7" type="button">7 dias</button>
+          <button class="aba periodo" data-dias="14" type="button">14 dias</button>
+          <button class="aba periodo" data-dias="30" type="button">30 dias</button>
+          <button class="aba periodo" data-dias="custom" type="button">📆 Personalizado</button>
+        </div>
+        <form id="m-faixa" class="faixa" hidden>
+          <label>de <input type="date" id="m-de" required></label>
+          <label>até <input type="date" id="m-ate" required></label>
+          <button class="botao primario" type="submit">Aplicar</button>
+        </form>
+        <button id="m-recarregar" class="botao" type="button">↻ Atualizar</button>
+      </div>
+    </nav>
+    <main class="metricas">
+      <section id="m-cartoes" class="cartoes"></section>
+      <section class="painel-bloco">
+        <h2>Views por post (mais recentes à direita)</h2>
+        <div id="m-grafico" class="grafico"></div>
+      </section>
+      <section class="painel-bloco">
+        <h2>Posts recentes</h2>
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead><tr>
+              <th data-ord="data">Data</th><th>Post</th>
+              <th data-ord="views">Views</th><th data-ord="alcance">Alcance</th>
+              <th data-ord="curtidas">❤️</th><th data-ord="comentarios">💬</th>
+              <th data-ord="salvos">🔖</th><th data-ord="compart">↗️</th>
+              <th data-ord="taxa" title="Interações ÷ alcance">Engaj.</th>
+            </tr></thead>
+            <tbody id="m-tabela"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="m-stories-bloco" class="painel-bloco" hidden>
+        <h2>Stories ativos (últimas 24h)</h2>
+        <div id="m-stories" class="cartoes"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="pg-agenda">
+  <nav class="barra">
+    <div class="grupo">
+      <button class="botao" id="ant" type="button" aria-label="Anterior">‹</button>
+      <button class="botao" id="hoje" type="button">Hoje</button>
+      <button class="botao" id="prox" type="button" aria-label="Próximo">›</button>
+      <h1 id="titulo"></h1>
+    </div>
+    <div class="grupo abas" role="tablist">
+      <button class="aba" data-visao="dia" type="button">Dia</button>
+      <button class="aba" data-visao="semana" type="button">Semana</button>
+      <button class="aba" data-visao="mes" type="button">Mês</button>
+    </div>
+  </nav>
+
+  <main class="layout">
+    <section id="calendario" class="calendario" aria-live="polite"></section>
+
+    <aside class="lateral">
+      <h2>Próximos posts</h2>
+      <ol id="proximos" class="lista"></ol>
+      <p class="legenda-cores">
+        <span class="ponto carrossel"></span>Carrossel
+        <span class="ponto imagem"></span>Imagem
+        <span class="ponto reels"></span>Reels
+        <span class="ponto story"></span>Story
+      </p>
+      <p id="atualizado" class="sutil"></p>
+    </aside>
+  </main>
+  </div>
+
+  <!-- Detalhe de um post -->
+  <dialog id="detalhe" class="modal">
+    <form method="dialog" class="modal-corpo">
+      <header class="modal-topo">
+        <h3 id="d-titulo"></h3>
+        <button class="fechar" value="fechar" aria-label="Fechar">×</button>
+      </header>
+      <div id="d-midias" class="midias"></div>
+      <dl id="d-info" class="info"></dl>
+      <pre id="d-legenda" class="texto-legenda"></pre>
+      <footer class="modal-rodape">
+        <a id="d-link" class="botao" target="_blank" rel="noopener" hidden>Abrir no Instagram</a>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Configuração das notificações -->
+  <dialog id="config" class="modal">
+    <form method="dialog" class="modal-corpo">
+      <header class="modal-topo">
+        <h3>Notificações</h3>
+        <button class="fechar" value="fechar" aria-label="Fechar">×</button>
+      </header>
+      <p id="n-permissao" class="aviso"></p>
+      <button id="n-pedir" class="botao primario" type="button">Permitir notificações</button>
+
+      <fieldset class="opcoes">
+        <legend>Avisar antes de cada post</legend>
+        <label><input type="checkbox" value="1"> 1 minuto</label>
+        <label><input type="checkbox" value="5"> 5 minutos</label>
+        <label><input type="checkbox" value="15"> 15 minutos</label>
+        <label><input type="checkbox" value="30"> 30 minutos</label>
+        <label><input type="checkbox" value="60"> 1 hora</label>
+        <label><input type="checkbox" value="180"> 3 horas</label>
+        <label><input type="checkbox" value="1440"> 1 dia</label>
+      </fieldset>
+      <fieldset class="opcoes">
+        <legend>Também avisar quando</legend>
+        <label><input type="checkbox" id="n-publicado"> o post for publicado</label>
+        <label><input type="checkbox" id="n-falhou"> uma publicação falhar</label>
+        <label><input type="checkbox" id="n-som"> tocar um som</label>
+      </fieldset>
+      <p class="sutil">Os avisos funcionam enquanto esta aba estiver aberta (pode ficar minimizada).</p>
+      <footer class="modal-rodape">
+        <button id="n-testar" class="botao" type="button">Testar aviso</button>
+        <button class="botao primario" value="ok">Pronto</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

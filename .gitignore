@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+
+# Segredos (NUNCA commitar)
+.env
+.env.*
+!.env.example
+
+# Estado local
+drive-pendentes.json
+fila.json
+painel/servico.log
+*.log
+
+# Cloudflare
+worker/.wrangler/
+
+# Mídias de posts (ficam no Google Drive)
+posts/*/
+!posts/exemplo/

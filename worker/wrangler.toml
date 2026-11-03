@@ -1,0 +1,16 @@
+name = "instagram-agendador"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Roda a cada minuto e publica o que venceu
+[triggers]
+crons = ["* * * * *"]
+
+[[r2_buckets]]
+binding = "MIDIA"
+bucket_name = "instagram-midia"
+
+[vars]
+GRAPH_VERSION = "v21.0"
+
+# Segredos (não ficam aqui): API_KEY, META_TOKEN
