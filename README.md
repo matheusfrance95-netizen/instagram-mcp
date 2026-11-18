@@ -50,13 +50,14 @@ Para conferir o que falta: `npm run verificar`.
 `origem` pode ser o nome de uma subpasta de `posts/` ou **qualquer caminho**
 de pasta ou arquivo, como `C:\Users\mathe\Downloads\Carrosseis\Carrossel X`.
 
-## Conteúdo no Google Drive
+## Conteúdo no OneDrive
 
-Os carrosséis da skill ficam em **G:\Meu Drive\Criação de Conteúdo\Corretagem\Carrosseis**
-(Google Drive para computador, modo streaming: nada fica no HD).
+Os carrosséis da skill ficam em **C:\Users\mathe\OneDrive\Criação de Conteúdo\Corretagem\Carrosseis**
+(`DRIVE_DIR` no `.env`). A pasta está marcada como "só online" (`attrib +U -P`), então o OneDrive
+libera o espaço local depois de sincronizar. Qualquer pasta sincronizada serve (antes era o Google Drive em G:).
 
-- A página do carrossel tem o botão **☁️ Enviar para o Google Drive**: grava os slides em JPG
-  e o `legenda.txt` direto no Drive, através do painel (que precisa estar no ar).
+- A página do carrossel tem o botão **☁️ Enviar para o OneDrive**: grava os slides em JPG
+  e o `legenda.txt` direto na pasta, através do painel (que precisa estar no ar).
 - O MCP acha a pasta pelo nome: "evolução de obra" → `Carrossel - Evolucao de Obra`.
 - Depois que o post sobe, a pasta é apagada do Drive (vai para a lixeira do Drive):
   na hora, se publicou agora; se foi agendado, o painel apaga quando o post aparecer como publicado.

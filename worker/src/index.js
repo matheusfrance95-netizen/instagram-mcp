@@ -10,6 +10,8 @@
  * Variáveis (wrangler.toml): IG_USER_ID, GRAPH_VERSION
  */
 import { executar, validar, TERMINAIS } from "../../src/trabalho.js";
+import { rodarVigia, validarVigia, resumoVigia } from "../../src/vigia.js";
+import { perfil } from "../../src/graph.js";
 
 const TIPOS = {
   jpg: "image/jpeg", jpeg: "image/jpeg", mp4: "video/mp4", mov: "video/quicktime",
@@ -49,6 +51,43 @@ async function listarTrabalhos(env) {
     cursor = r.truncated ? r.cursor : undefined;
   } while (cursor);
   return itens.sort((a, b) => a.quando.localeCompare(b.quando));
+}
+
+async function lerVigia(env, id) {
+  const o = await env.MIDIA.get(`vigias/${id}.json`);
+  return o ? o.json() : null;
+}
+
+const salvarVigia = (env, v) =>
+  env.MIDIA.put(`vigias/${v.id}.json`, JSON.stringify(v), {
+    httpMetadata: { contentType: "application/json" },
+  });
+
+async function listarVigias(env) {
+  const r = await env.MIDIA.list({ prefix: "vigias/" });
+  const itens = [];
+  for (const o of r.objects) {
+    const v = await (await env.MIDIA.get(o.key))?.json();
+    if (v) itens.push(v);
+  }
+  return itens.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+}
+
+/** A cada 5 minutos: roda os vigias ativos. Um vigia com erro não derruba os outros. */
+async function rodarVigias(env) {
+  const ativos = (await listarVigias(env)).filter((v) => v.ativo);
+  if (ativos.length === 0) return;
+  const ctx = ctxDe(env);
+  const eu = (await perfil(ctx)).username;
+  for (const v of ativos) {
+    try {
+      if (await rodarVigia(ctx, v, eu)) await salvarVigia(env, v);
+    } catch (e) {
+      v.erroRodada = e.message.slice(0, 300);
+      v.ultimaRodada = new Date().toISOString();
+      await salvarVigia(env, v);
+    }
+  }
 }
 
 async function apagarMidias(env, t) {
@@ -141,6 +180,42 @@ async function rotas(req, env) {
     }
   }
 
+  // ---------- Vigias de palavra-chave nos comentários ----------
+  if (partes[0] === "vigias" && req.method === "POST" && !partes[1]) {
+    const b = await req.json();
+    const desde = b.desde ? new Date(b.desde) : new Date();
+    const v = {
+      id: aleatorio().slice(0, 8),
+      palavra: String(b.palavra || "").trim(),
+      dm: String(b.dm || ""),
+      respostas: (b.respostas || []).map(String).filter(Boolean),
+      posts: (b.posts || []).map(String).filter(Boolean),
+      desde: desde.toISOString(),
+      ate: (b.ate ? new Date(b.ate) : new Date(desde.getTime() + 7 * 86400_000)).toISOString(),
+      rotulo: String(b.rotulo || "").slice(0, 100),
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+      tratados: {},
+    };
+    try { validarVigia(v); } catch (e) { return json({ erro: e.message }, 400); }
+    await salvarVigia(env, v);
+    return json(resumoVigia(v), 201);
+  }
+  if (partes[0] === "vigias" && req.method === "GET" && !partes[1]) {
+    return json((await listarVigias(env)).map(resumoVigia));
+  }
+  if (partes[0] === "vigias" && partes[1]) {
+    const v = await lerVigia(env, partes[1]);
+    if (!v) return json({ erro: `Nenhum vigia com id ${partes[1]}.` }, 404);
+    if (req.method === "GET") return json({ ...resumoVigia(v), dm: v.dm, respostas: v.respostas, tratados: v.tratados });
+    if (req.method === "DELETE") {
+      v.ativo = false;
+      v.encerradoEm = new Date().toISOString();
+      await salvarVigia(env, v);
+      return json(resumoVigia(v));
+    }
+  }
+
   if (req.method === "GET" && partes[0] === "saude") {
     return json({ ok: true, igUserId: env.IG_USER_ID, tokenConfigurado: Boolean(env.META_TOKEN) });
   }
@@ -169,8 +244,9 @@ export default {
       return json({ erro: e.message }, 500);
     }
   },
-  async scheduled(_evento, env, ctx) {
+  async scheduled(evento, env, ctx) {
     ctx.waitUntil(tique(env));
+    if (new Date(evento.scheduledTime).getUTCMinutes() % 5 === 0) ctx.waitUntil(rodarVigias(env));
   },
 };
 

@@ -78,3 +78,10 @@ export const listarTrabalhos = () => pedir("/trabalhos");
 export const verTrabalho = (id) => pedir(`/trabalhos/${id}`);
 export const cancelarTrabalho = (id) => pedir(`/trabalhos/${id}`, { metodo: "DELETE" });
 export const saude = () => pedir("/saude");
+
+// Vigias de palavra-chave nos comentários
+export const criarVigia = (v) =>
+  pedir("/vigias", { metodo: "POST", tipo: "application/json", corpo: JSON.stringify(v) });
+export const listarVigias = () => pedir("/vigias");
+export const verVigia = (id) => pedir(`/vigias/${id}`);
+export const desligarVigia = (id) => pedir(`/vigias/${id}`, { metodo: "DELETE" });

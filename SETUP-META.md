@@ -110,3 +110,42 @@ Exige a permissão **`instagram_manage_comments`**, que o token atual não tem.
    npm run token -- <TOKEN NOVO>
    npm run deploy
    ```
+
+## Direct automático por palavra-chave (vigia)
+
+O vigia (`ligar_vigia_comentarios`) lê os comentários e manda **um direct** para quem
+comentou a palavra combinada, pela *resposta privada* da Meta. Precisa de:
+
+1. **No app do Instagram (celular):** Configurações → Mensagens e respostas aos stories →
+   Ferramentas conectadas → ativar **Permitir acesso às mensagens**.
+2. **developers.facebook.com → app Meu Publicador → Casos de uso → Gerenciar mensagens e
+   conteúdo no Instagram → Personalizar:** confira que estas permissões estão adicionadas:
+   `instagram_manage_comments`, `instagram_manage_messages`, `pages_manage_metadata`.
+3. **business.facebook.com → Usuários do sistema → Publicador → Gerar token** (expiração
+   **Nunca**), marcando as permissões de antes **mais** as três acima:
+   ```
+   instagram_basic
+   instagram_content_publish
+   instagram_manage_insights
+   instagram_manage_comments
+   instagram_manage_messages
+   pages_show_list
+   pages_read_engagement
+   pages_manage_metadata
+   ```
+4. Grave e atualize a nuvem:
+   ```bash
+   npm run token -- <TOKEN NOVO>
+   npm run deploy
+   ```
+5. **Teste antes de valer:** ligue um vigia, comente a palavra com **outra conta** e
+   espere até 5 minutos. `ver_vigias` mostra se o direct saiu ou o erro.
+
+| Sintoma no `ver_vigias` | Causa |
+|---|---|
+| erro (#10) ou (#200) de permissão | falta permissão no token, ou o app precisa de **Acesso Avançado** a `instagram_manage_messages` (análise do app pela Meta) para falar com quem não tem função no app |
+| erro (#551) ou "não disponível" | a pessoa não aceita mensagens, ou o passo 1 não foi feito |
+| "fora da janela" | comentário com mais de 7 dias |
+
+Regras da Meta: **uma** resposta privada por comentário, só até 7 dias depois dele.
+Depois disso, só quando a pessoa responder (aí abre a janela normal de 24 h).

@@ -1,5 +1,5 @@
 /**
- * Carrosséis no Google Drive (montado em G: no modo streaming).
+ * Carrosséis na pasta de nuvem DRIVE_DIR (OneDrive "só online" ou Google Drive em streaming).
  *
  * - salvarArquivo: grava o que a página do carrossel envia (slides JPG + legenda).
  * - Depois que o post sobe, a pasta é apagada do Drive (vai para a lixeira do Drive).
@@ -36,8 +36,8 @@ export async function salvarArquivo(carrossel, arquivo, corpo) {
   if (!config.driveDir) throw new Error("DRIVE_DIR não está configurado no .env do instagram-mcp.");
   if (!NOME_ARQUIVO.test(arquivo)) throw new Error(`Arquivo não aceito: ${arquivo}`);
   if (corpo.length > LIMITE_BYTES) throw new Error("Arquivo grande demais.");
-  await fs.access(path.parse(config.driveDir).root).catch(() => {
-    throw new Error("O Google Drive (G:) não está conectado. Abra o app Google Drive.");
+  await fs.access(path.dirname(path.resolve(config.driveDir))).catch(() => {
+    throw new Error(`A pasta de nuvem não está acessível (${config.driveDir}). Abra o app OneDrive/Google Drive.`);
   });
   const dir = path.join(config.driveDir, nomePasta(carrossel));
   await fs.mkdir(dir, { recursive: true });

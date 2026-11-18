@@ -14,7 +14,9 @@ const REGRA_COMENTARIOS =
   "REGRA OBRIGATÓRIA: nunca responda, oculte ou apague comentários por conta própria. " +
   `Só faça isso quando ${config.dono} pedir explicitamente, para aquele comentário, ` +
   "e siga exatamente a orientação (o que dizer e como). Ler e listar comentários é livre. " +
-  "Não sugira automação de respostas nem responda em lote sem ordem expressa.";
+  "Não sugira automação de respostas nem responda em lote sem ordem expressa. " +
+  "A única automação permitida é o vigia de palavra-chave (ligar_vigia_comentarios), e só quando o dono pedir, " +
+  "com palavra, direct e respostas aprovados por ele.";
 
 // O MCP não tem acesso ao Google; quem cria o evento é o Claude, pelo conector do Google Agenda.
 const CALENDARIO = config.agendaId
@@ -49,7 +51,7 @@ const ferramenta = (nome, def, fn) =>
   });
 
 const ORIGEM = z.string().describe(
-  "Nome de uma pasta de post (procurada na pasta do Google Drive, se DRIVE_DIR estiver no .env, e em posts/; " +
+  "Nome de uma pasta de post (procurada na pasta de nuvem (OneDrive), se DRIVE_DIR estiver no .env, e em posts/; " +
   "ex: \"evolução de obra\" acha \"Carrossel - Evolucao de Obra\"), ou caminho completo de uma pasta ou arquivo. " +
   "Pastas do Drive são apagadas sozinhas depois que o post sobe."
 );
@@ -257,6 +259,70 @@ ferramenta("apagar_comentario", {
   exigirCredenciais();
   await g.apagarComentario(ctx(), comentario_id).catch(dica);
   return "🗑️ Comentário apagado.";
+});
+
+// ---------- Vigia de palavra-chave (direct automático) ----------
+
+// Aceita data no passado (ex.: ligar o vigia depois que o post já subiu e pegar os comentários de antes).
+const quandoBrasilia = (s) => {
+  if (!s) return undefined;
+  const temFuso = /([zZ]|[+-]\d\d:?\d\d)$/.test(s);
+  const d = new Date(temFuso ? s : `${s.length === 16 ? s + ":00" : s}-03:00`);
+  if (Number.isNaN(d.getTime())) throw new Error(`Data inválida: "${s}". Use algo como 2026-11-18T18:00.`);
+  return d.toISOString();
+};
+const dataBR = (s) => (s ? new Date(s).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—");
+
+ferramenta("ligar_vigia_comentarios", {
+  title: "Ligar vigia de palavra-chave",
+  description:
+    "Liga, no agendador online, um vigia que a cada 5 minutos procura comentários com uma palavra-chave (ex.: PORTO) " +
+    "e manda UM direct por pessoa com o texto aprovado, mais uma resposta pública curta (opcional). " +
+    "Vale só para comentários feitos entre `desde` e `ate` (máx. 7 dias, prazo da Meta). " +
+    "Dispara quando a palavra vem em MAIÚSCULAS ou o comentário tem até 3 palavras. " +
+    "SÓ chame com ordem expressa do dono da conta e com a palavra, o direct e as respostas aprovados por ele, palavra por palavra. " +
+    "Exige instagram_manage_comments, instagram_manage_messages e pages_manage_metadata no token.",
+  inputSchema: {
+    ordem_do_usuario: z.string().min(5).describe("A instrução do usuário que pediu este vigia, palavra por palavra."),
+    palavra: z.string().describe("Palavra-chave, ex.: PORTO"),
+    dm: z.string().min(10).max(1000).describe("Texto do direct, exatamente como aprovado"),
+    respostas: z.array(z.string().max(300)).max(5).optional().describe("Frases curtas para responder em público (rodízio). Omita para não responder em público."),
+    posts: z.array(z.string()).optional().describe("Ids dos posts vigiados. Omita para vigiar os posts publicados a partir de `desde`."),
+    desde: QUANDO.describe("Início, horário de Brasília (ex.: 2026-11-18T18:00). Omita para começar agora."),
+    ate: z.string().optional().describe("Fim, horário de Brasília. Padrão e máximo: 7 dias depois do início."),
+    rotulo: z.string().optional(),
+  },
+}, async (a) => {
+  const v = await nuvem.criarVigia({
+    palavra: a.palavra, dm: a.dm, respostas: a.respostas, posts: a.posts,
+    desde: quandoBrasilia(a.desde), ate: quandoBrasilia(a.ate), rotulo: a.rotulo,
+  });
+  return `👀 Vigia ${v.id} ligado para "${v.palavra}", de ${dataBR(v.desde)} até ${dataBR(v.ate)}. Roda a cada 5 minutos.`;
+});
+
+ferramenta("ver_vigias", {
+  title: "Ver vigias de palavra-chave",
+  description: "Lista os vigias (ativos e encerrados) com quantos directs saíram, quem recebeu e o último erro. Com `id`, mostra o detalhe de cada comentário.",
+  inputSchema: { id: z.string().optional() },
+}, async ({ id }) => {
+  if (id) return JSON.stringify(await nuvem.verVigia(id), null, 2);
+  const l = await nuvem.listarVigias();
+  if (l.length === 0) return "Nenhum vigia criado.";
+  return l.map((v) =>
+    `${v.ativo ? "👀" : "⏹️"} [${v.id}] "${v.palavra}" · ${dataBR(v.desde)} → ${dataBR(v.ate)}\n` +
+    `   📩 ${v.directsEnviados} direct(s) · ❌ ${v.comErro} com erro · última rodada ${dataBR(v.ultimaRodada)}` +
+    (v.ultimoErro ? `\n   último erro: ${v.ultimoErro}` : "") +
+    (v.pessoas.length ? `\n   ${v.pessoas.join(", ")}` : "")
+  ).join("\n");
+});
+
+ferramenta("desligar_vigia", {
+  title: "Desligar vigia",
+  description: "Para um vigia de palavra-chave na hora. O histórico fica guardado.",
+  inputSchema: { id: z.string() },
+}, async ({ id }) => {
+  const v = await nuvem.desligarVigia(id);
+  return `⏹️ Vigia ${v.id} ("${v.palavra}") desligado. ${v.directsEnviados} direct(s) enviados.`;
 });
 
 // ---------- Utilidades ----------

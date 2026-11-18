@@ -212,3 +212,34 @@ export async function ocultarComentario(ctx, commentId, ocultar = true) {
 export async function apagarComentario(ctx, commentId) {
   await chamar(ctx, `/${commentId}`, { metodo: "DELETE" });
 }
+
+// ---------- Direct (exige instagram_manage_messages e pages_manage_metadata) ----------
+
+/** Página do Facebook ligada à conta do Instagram, com o token dela (o envio de direct exige token de Página). */
+export async function paginaDoInstagram(ctx) {
+  if (ctx._pagina) return ctx._pagina;
+  const d = await chamar(ctx, "/me/accounts", {
+    params: { fields: "id,access_token,instagram_business_account{id}", limit: 100 },
+  });
+  const p = (d.data || []).find((x) => x.instagram_business_account?.id === ctx.igUserId);
+  if (!p) throw new Error("Não achei a Página do Facebook ligada a esta conta do Instagram (veja pages_show_list no token).");
+  ctx._pagina = { id: p.id, token: p.access_token };
+  return ctx._pagina;
+}
+
+/**
+ * Resposta privada: manda UM direct para quem fez o comentário.
+ * Regras da Meta: só até 7 dias depois do comentário e uma mensagem por comentário;
+ * depois disso, só se a pessoa responder.
+ */
+export async function respostaPrivada(ctx, commentId, texto) {
+  const pagina = await paginaDoInstagram(ctx);
+  const d = await chamar({ ...ctx, token: pagina.token }, `/${pagina.id}/messages`, {
+    metodo: "POST",
+    params: {
+      recipient: JSON.stringify({ comment_id: commentId }),
+      message: JSON.stringify({ text: texto }),
+    },
+  });
+  return d.message_id;
+}
