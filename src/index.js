@@ -288,13 +288,14 @@ ferramenta("ligar_vigia_comentarios", {
     dm: z.string().min(10).max(1000).describe("Texto do direct, exatamente como aprovado"),
     respostas: z.array(z.string().max(300)).max(5).optional().describe("Frases curtas para responder em público (rodízio). Omita para não responder em público."),
     posts: z.array(z.string()).optional().describe("Ids dos posts vigiados. Omita para vigiar os posts publicados a partir de `desde`."),
+    travar_no_primeiro: z.boolean().optional().describe("Vigiar só o primeiro post publicado a partir de `desde` (ex.: um Reels agendado). Padrão: não."),
     desde: QUANDO.describe("Início, horário de Brasília (ex.: 2026-11-18T18:00). Omita para começar agora."),
     ate: z.string().optional().describe("Fim, horário de Brasília. Padrão e máximo: 7 dias depois do início."),
     rotulo: z.string().optional(),
   },
 }, async (a) => {
   const v = await nuvem.criarVigia({
-    palavra: a.palavra, dm: a.dm, respostas: a.respostas, posts: a.posts,
+    palavra: a.palavra, dm: a.dm, respostas: a.respostas, posts: a.posts, travarNoPrimeiro: a.travar_no_primeiro,
     desde: quandoBrasilia(a.desde), ate: quandoBrasilia(a.ate), rotulo: a.rotulo,
   });
   return `👀 Vigia ${v.id} ligado para "${v.palavra}", de ${dataBR(v.desde)} até ${dataBR(v.ate)}. Roda a cada 5 minutos.`;

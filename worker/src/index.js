@@ -190,6 +190,7 @@ async function rotas(req, env) {
       dm: String(b.dm || ""),
       respostas: (b.respostas || []).map(String).filter(Boolean),
       posts: (b.posts || []).map(String).filter(Boolean),
+      travarNoPrimeiro: Boolean(b.travarNoPrimeiro),
       desde: desde.toISOString(),
       ate: (b.ate ? new Date(b.ate) : new Date(desde.getTime() + 7 * 86400_000)).toISOString(),
       rotulo: String(b.rotulo || "").slice(0, 100),
